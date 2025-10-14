@@ -1,0 +1,241 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+/* -------------------------
+   Design tokens & variables
+   ------------------------- */
+:root {
+  --font-h1: 2.5rem;
+  --font-h2: 2rem;
+  --font-h3: 1.5rem;
+  --font-body: 1rem;
+  --font-small: 0.875rem;
+
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-bold: 700;
+
+  --text-primary: #212121;
+  --text-secondary: #616161;
+  --text-muted: #9e9e9e;
+  --primary: #1976d2;
+  --secondary: #424242;
+
+  --header-search-bg: rgba(25, 118, 210, 0.03);
+}
+
+/* -------------------------
+   Global base styles
+   ------------------------- */
+html, body, #root {
+  height: 100%;
+  overflow: hidden; /* body must not show global scrollbar */
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  background-color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* Typography helpers */
+.h1 { font-size: var(--font-h1); font-weight: var(--font-bold); margin-bottom: 0.5rem; }
+.h2 { font-size: var(--font-h2); font-weight: var(--font-bold); margin-bottom: 0.5rem; }
+.h3 { font-size: var(--font-h3); font-weight: var(--font-medium); margin-bottom: 0.5rem; }
+.body { font-size: var(--font-body); font-weight: var(--font-regular); }
+.small { font-size: var(--font-small); font-weight: var(--font-regular); color: var(--text-secondary); }
+
+.text-primary { color: var(--primary); }
+.text-secondary { color: var(--secondary); }
+.text-muted { color: var(--text-muted); }
+
+/* -------------------------
+   Login page styles
+   ------------------------- */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #f7faff 0%, #f5f8ff 50%);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 980px;
+  background: #fff;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(20, 20, 60, 0.08);
+}
+
+.login-left {
+  background: linear-gradient(180deg, #eef6ff 0%, #ffffff 100%);
+  padding: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-illustration {
+  width: 100%;
+  max-width: 320px;
+  object-fit: contain;
+}
+
+.login-right {
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e6e9ef;
+  margin-top: 8px;
+  outline: none;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.input-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.06);
+}
+
+@media (max-width: 900px) {
+  .login-card { grid-template-columns: 1fr; }
+  .login-left { display: none; }
+}
+
+/* -------------------------
+   MUI TextField overrides
+   ------------------------- */
+.mui-floating-input .MuiOutlinedInput-root {
+  border-radius: 8px;
+  font-size: 14px;
+}
+.mui-floating-input .MuiOutlinedInput-input {
+  padding: 10px 12px;
+}
+.mui-floating-input .MuiInputLabel-root {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.mui-floating-input .MuiInputLabel-root.Mui-focused {
+  color: var(--primary);
+}
+.mui-floating-input .MuiOutlinedInput-root.Mui-focused fieldset {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.06);
+}
+.mui-floating-input input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.9;
+  font-size: 13px;
+}
+ /* optional modal tweaks */
+.MuiModal-root .MuiBackdrop-root {
+  backdrop-filter: blur(2px);
+}
+
+/* --- Sidebar enhancements (append to index.css) --- */
+
+/* root adjustments for the sidebar components */
+.app-sidebar {
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* Logo styling */
+.sidebar-logo {
+  width: 40px;
+  height: 40px;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0;
+  transition: transform 180ms ease;
+}
+.app-sidebar .sidebar-logo svg {
+  color: var(--primary);
+}
+
+/* clickable logo when collapsed - pointer cursor */
+.sidebar-logo-btn[role="button"] {
+  cursor: pointer;
+}
+.sidebar-logo-btn[role="button"]:hover .sidebar-logo {
+  transform: scale(1.03);
+}
+
+/* NavLink wrapper */
+.sidebar-navlink {
+  display: block;
+  color: white;
+  border-radius: 8px;
+  transition: background-color 180ms ease, transform 160ms ease;
+}
+
+/* ListItemButton style tweaks (spacing handled by MUI) */
+.sidebar-listitembtn:hover {
+  background-color: rgba(255,255,255,0.06); /* subtle hover bg that keeps blue visible */
+  transform: translateY(-1px);
+}
+
+/* Icon color only changes on hover/active */
+.sidebar-navlink:hover .sidebar-icon svg,
+.sidebar-navlink.active .sidebar-icon svg {
+  color: var(--primary);
+  transition: color 160ms ease;
+}
+
+/* Keep ListItemText readable but don't swamp with bright bg */
+.sidebar-navlink.active {
+  background-color: rgba(255,255,255,0.08); /* slightly more visible for active row */
+}
+
+/* When collapsed, highlight icon with small pill */
+.app-sidebar[style*="width: 72px"] .sidebar-icon {
+  border-radius: 999px;
+  padding: 6px;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+.app-sidebar[style*="width: 72px"] .sidebar-navlink:hover .sidebar-icon {
+  background-color: rgba(255,255,255,0.08);
+}
+
+/* settings button spacing */
+.sidebar-settings-btn:hover svg {
+  color: var(--primary);
+}
+
+/* smoother tooltip appearance spacing */
+.MuiTooltip-tooltip {
+  font-size: 0.875rem;
+}
+
+/* ensure icon svg inherits color and transitions nicely */
+.app-sidebar .MuiListItemIcon-root svg {
+  transition: color 160ms ease, transform 160ms ease;
+}

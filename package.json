@@ -1,0 +1,39 @@
+{
+  "name": "vendor-management",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mui/x-date-pickers": "^8.11.3",
+    "@reduxjs/toolkit": "^2.9.0",
+    "@tanstack/react-table": "^8.21.3",
+    "dayjs": "^1.11.18",
+    "export-to-csv": "^1.4.0",
+    "framer-motion": "^12.23.18",
+    "lucide-react": "^0.544.0",
+    "material-react-table": "^3.2.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.9.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "eslint": "^9.35.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.4.0",
+    "rollup-plugin-visualizer": "^6.0.3",
+    "vite": "^7.1.6"
+  }
+}
