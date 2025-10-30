@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Provider } from "react-redux";
 import store from "./store/store";
 import Loader from "./components/common/Loader";
-import DashboardLayout from "./components/layout/DashboardLayout";
+import DashboardLayout from "./components/layout/dashboardLayout";
 
 // Lazy load pages
 const VendorMaster = lazy(() => import("./features/vendorMaster/VenderMaster"));
