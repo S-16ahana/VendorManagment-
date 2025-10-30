@@ -31,6 +31,7 @@ import ModalForm from "../../components/common/ModalForm";
 const BUILT_IN = [
   { email: "admin@gmail.com", name: "Administrator", role: "admin", password: "Admin@123" },
   { email: "user@gmail.com", name: "Standard User", role: "user", password: "User@123" },
+  { email: "pro@gmail.com", name: "Procurement Officer", role: "procurement", password: "Pro@123" },
 ];
 
 // --- helpers ---
@@ -55,7 +56,6 @@ const persistUsersToLocalStorage = (list) => {
 export default function Settings() {
   const userRole = useSelector((s) => s.auth?.user?.role);
   const userName = useSelector((s) => s.auth?.user?.name);
-  // Wait for authentication state to avoid premature redirect
   const isAuthenticated = useSelector((s) => s.auth?.isAuthenticated);
 
   const navigate = useNavigate();
@@ -66,7 +66,7 @@ export default function Settings() {
   const [pwOpen, setPwOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
 
-  // memoized field definitions (stable references)
+  // memoized form fields
   const createFields = useMemo(
     () => [
       { name: "name", label: "Full name", required: true },
@@ -86,6 +86,7 @@ export default function Settings() {
         options: [
           { value: "user", label: "User" },
           { value: "admin", label: "Admin" },
+          { value: "procurement", label: "Procurement" },
         ],
       },
     ],
@@ -124,7 +125,7 @@ export default function Settings() {
     setUsers(merged);
   };
 
-  // only run when auth state / userRole changes
+  // guard + load
   useEffect(() => {
     // If we explicitly know the user is unauthenticated, send them to login
     if (isAuthenticated === false) {
@@ -192,6 +193,7 @@ export default function Settings() {
     if (idx >= 0) {
       stored[idx] = { ...stored[idx], password };
     } else {
+      // If it's a built-in user, add to stored overrides so login will accept the new password
       stored.push({
         email,
         name: editingUser.name || editingUser.email,
@@ -217,8 +219,7 @@ export default function Settings() {
         Admin Settings
       </Typography>
       <Typography variant="body2" sx={{ mb: 2 }}>
-        Signed in as <strong>{userName || "Admin"}</strong>. Create users and manage
-        passwords (demo/local).
+        Signed in as <strong>{userName || "Admin"}</strong>. Create users and manage passwords (demo/local).
       </Typography>
 
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

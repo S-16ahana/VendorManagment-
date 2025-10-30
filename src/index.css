@@ -21,6 +21,9 @@
   --primary: #1976d2;
   --secondary: #424242;
 
+  /* ✅ Added for improved consistency across UI */
+  --gray-bg: #f0f0f0;
+  --gray-border: #e0e0e0;
   --header-search-bg: rgba(25, 118, 210, 0.03);
 }
 
@@ -151,14 +154,13 @@ body {
   opacity: 0.9;
   font-size: 13px;
 }
- /* optional modal tweaks */
+
+/* optional modal tweaks */
 .MuiModal-root .MuiBackdrop-root {
   backdrop-filter: blur(2px);
 }
 
 /* --- Sidebar enhancements (append to index.css) --- */
-
-/* root adjustments for the sidebar components */
 .app-sidebar {
   display: flex;
   flex-direction: column;
@@ -197,9 +199,9 @@ body {
   transition: background-color 180ms ease, transform 160ms ease;
 }
 
-/* ListItemButton style tweaks (spacing handled by MUI) */
+/* ListItemButton style tweaks */
 .sidebar-listitembtn:hover {
-  background-color: rgba(255,255,255,0.06); /* subtle hover bg that keeps blue visible */
+  background-color: rgba(255,255,255,0.06);
   transform: translateY(-1px);
 }
 
@@ -210,9 +212,9 @@ body {
   transition: color 160ms ease;
 }
 
-/* Keep ListItemText readable but don't swamp with bright bg */
+/* Keep ListItemText readable */
 .sidebar-navlink.active {
-  background-color: rgba(255,255,255,0.08); /* slightly more visible for active row */
+  background-color: rgba(255,255,255,0.08);
 }
 
 /* When collapsed, highlight icon with small pill */
@@ -238,4 +240,31 @@ body {
 /* ensure icon svg inherits color and transitions nicely */
 .app-sidebar .MuiListItemIcon-root svg {
   transition: color 160ms ease, transform 160ms ease;
+}
+
+/* Update button uses global primary token */
+.update-btn {
+  text-transform: none;
+  background-color: var(--primary);
+  color: #fff;
+  min-width: 84px;
+  padding: 6px 8px;
+  box-shadow: none;
+  font-weight: 700;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  line-height: 1;
+  border: none;
+  cursor: pointer;
+}
+
+.update-btn:hover,
+.update-btn:focus {
+  filter: brightness(0.92);
+}
+
+.update-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: none;
 }

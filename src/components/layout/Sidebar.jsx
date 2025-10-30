@@ -1,5 +1,5 @@
 // src/components/layout/Sidebar.jsx
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import PropTypes from "prop-types";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
@@ -13,6 +13,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
+import Collapse from "@mui/material/Collapse";
 
 import MenuIcon from "@mui/icons-material/Menu";
 import BusinessIcon from "@mui/icons-material/Business";
@@ -23,27 +24,16 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import PaymentIcon from "@mui/icons-material/Payment";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 
-import { NavLink, useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import { logout as logoutAction } from "../../features/auth/LoginSlice";
 
-/* --- constants / static data (stable references) --- */
 const DEFAULT_WIDTH = 260;
 const COLLAPSED_WIDTH = 72;
-
-/**
- * NOTE:
- * - Dashboard menu removed (no /vendordashboard link)
- * - Paths are normalized to top-level routes (e.g. /vendors, /subcontractors)
- */
-const menuItems = [
-  { label: "Reports", path: "/reports", Icon: BarChartIcon },
-  { label: "Vendor Master", path: "/vendors", Icon: BusinessIcon },
-  { label: "Subcontractors", path: "/subcontractors", Icon: PeopleIcon },
-  { label: "Hiring Services", path: "/hiring", Icon: LocalShippingIcon },
-  { label: "Payments", path: "/payments", Icon: PaymentIcon },
-];
 
 const drawerPaperSx = (width, theme, isLgUp) => ({
   width,
@@ -72,7 +62,11 @@ const headerInnerSx = (collapsed) => ({
 });
 
 const listSx = { flex: 1, px: 0 };
-const footerBoxSx = (collapsed) => ({ p: collapsed ? 1 : 2, display: "flex", justifyContent: collapsed ? "center" : "flex-start" });
+const footerBoxSx = (collapsed) => ({
+  p: collapsed ? 1 : 2,
+  display: "flex",
+  justifyContent: collapsed ? "center" : "flex-start",
+});
 
 function SidebarMui({ mobileOpen, onClose, collapsed = false, onToggleCollapse }) {
   const theme = useTheme();
@@ -81,6 +75,59 @@ function SidebarMui({ mobileOpen, onClose, collapsed = false, onToggleCollapse }
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const { user } = useSelector((s) => s.auth || {});
+  const role = user?.role || "";
+
+  // Procurement submenu items (preserve the items from the screenshot)
+  const procurementSubmenus = [
+    { label: "Demand Requisition", path: "/procurement/demand-requisition" },
+    { label: "Purch. Requisition", path: "/procurement/purch-requisition" },
+    { label: "Service Bill", path: "/procurement/service-bill" },
+    { label: "Purchase Order", path: "/procurement/purchase-order" },
+    { label: "Services Invoice", path: "/procurement/services-invoice" },
+    { label: "GRN Detail", path: "/procurement/grn-detail" },
+    { label: "Purchase Return", path: "/procurement/purchase-return" },
+  ];
+
+  // Build visible menus based on role. Procurement should be last for admin.
+  let visibleMenus = [];
+
+  if (role === "admin") {
+    visibleMenus = [
+      { label: "Reports", path: "/reports", Icon: BarChartIcon },
+      { label: "Vendor Master", path: "/vendors", Icon: BusinessIcon },
+      { label: "Subcontractors", path: "/subcontractors", Icon: PeopleIcon },
+      { label: "Hiring Services", path: "/hiring", Icon: LocalShippingIcon },
+      { label: "Payments", path: "/payments", Icon: PaymentIcon },
+      // procurement intentionally last for admin
+      { label: "Procurement", path: "/procurement", Icon: LocalShippingIcon, hasSubmenu: true },
+    ];
+  } else if (role === "user") {
+    visibleMenus = [
+      { label: "Reports", path: "/reports", Icon: BarChartIcon },
+      { label: "Vendor Master", path: "/vendors", Icon: BusinessIcon },
+      { label: "Subcontractors", path: "/subcontractors", Icon: PeopleIcon },
+      { label: "Hiring Services", path: "/hiring", Icon: LocalShippingIcon },
+      { label: "Payments", path: "/payments", Icon: PaymentIcon },
+    ];
+  } else if (role === "procurement") {
+    visibleMenus = [
+      { label: "Vendor Master", path: "/vendors", Icon: BusinessIcon },
+      { label: "Procurement", path: "/procurement", Icon: LocalShippingIcon, hasSubmenu: true },
+    ];
+  }
+
+  // Open procurement submenu if current location is inside /procurement
+  const initialProcurementOpen = location.pathname.startsWith("/procurement");
+  const [procurementOpen, setProcurementOpen] = useState(initialProcurementOpen);
+
+  const handleToggleProcurement = () => {
+    // don't open submenus when sidebar is collapsed (keeps UX consistent)
+    if (collapsed) return;
+    setProcurementOpen((s) => !s);
+  };
 
   const handleHeaderClick = useCallback(() => {
     if (collapsed && typeof onToggleCollapse === "function") onToggleCollapse();
@@ -102,7 +149,15 @@ function SidebarMui({ mobileOpen, onClose, collapsed = false, onToggleCollapse }
 
   const content = useMemo(
     () => (
-      <Box sx={{ width, display: "flex", flexDirection: "column", height: "100%", px: collapsed ? 0 : 2 }}>
+      <Box
+        sx={{
+          width,
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          px: collapsed ? 0 : 2,
+        }}
+      >
         {/* Header */}
         <Box sx={headerBoxSx(collapsed)}>
           <Box
@@ -124,29 +179,102 @@ function SidebarMui({ mobileOpen, onClose, collapsed = false, onToggleCollapse }
 
         {/* Menu */}
         <List sx={listSx}>
-          {menuItems.map(({ label, path, Icon }) => (
-            <ListItem key={path} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                component={NavLink}
-                to={path}
-                end={path === "/"}
-                sx={{
-                  px: collapsed ? 1.25 : 1.5,
-                  "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
-                  "&.active": { backgroundColor: "rgba(255,255,255,0.06)" },
-                  color: "inherit",
-                }}
-              >
-                <Tooltip title={collapsed ? label : ""} placement="right" disableHoverListener={!collapsed}>
-                  <ListItemIcon sx={{ minWidth: 36, justifyContent: "center", color: "inherit" }}>
-                    <Icon />
-                  </ListItemIcon>
-                </Tooltip>
+          {visibleMenus.map(({ label, path, Icon, hasSubmenu }) => {
+            // Special rendering for Procurement (with submenu)
+            if (hasSubmenu) {
+              // top-level procurement button
+              return (
+                <Box key={path}>
+                  <ListItem disablePadding sx={{ mb: 0.5 }}>
+                    <ListItemButton
+                      onClick={handleToggleProcurement}
+                      component={NavLink}
+                      to={path}
+                      sx={{
+                        px: collapsed ? 1.25 : 1.5,
+                        "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
+                        "&.active": { backgroundColor: "rgba(255,255,255,0.06)" },
+                        color: "inherit",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Box style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <Tooltip title={collapsed ? label : ""} placement="right" disableHoverListener={!collapsed}>
+                          <ListItemIcon sx={{ minWidth: 36, justifyContent: "center", color: "inherit" }}>
+                            <Icon />
+                          </ListItemIcon>
+                        </Tooltip>
 
-                {!collapsed && <ListItemText primary={label} sx={{ color: "inherit", fontWeight: 500 }} />}
-              </ListItemButton>
-            </ListItem>
-          ))}
+                        {!collapsed && (
+                          <ListItemText primary={label} sx={{ color: "inherit", fontWeight: 500 }} />
+                        )}
+                      </Box>
+
+                      {/* expand icon only when not collapsed */}
+                      {!collapsed && (procurementOpen ? <ExpandLess /> : <ExpandMore />)}
+                    </ListItemButton>
+                  </ListItem>
+
+                  {/* Nested submenu (hidden when collapsed) */}
+                  <Collapse in={procurementOpen && !collapsed} timeout="auto" unmountOnExit>
+                    <List disablePadding>
+                      {procurementSubmenus.map((item) => {
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <ListItem key={item.path} disablePadding>
+                            <ListItemButton
+                              component={NavLink}
+                              to={item.path}
+                              sx={{
+                                px: 4,
+                                py: 1,
+                                "&:hover": { backgroundColor: "rgba(255,255,255,0.03)" },
+                                backgroundColor: isActive ? "rgba(255,255,255,0.06)" : "transparent",
+                                color: "inherit",
+                              }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 24, justifyContent: "flex-start", color: "inherit" }}>
+                                {/* small dot icon like in the screenshot */}
+                                <FiberManualRecordIcon sx={{ fontSize: 10, opacity: isActive ? 1 : 0.6 }} />
+                              </ListItemIcon>
+                              <ListItemText primary={item.label} sx={{ color: "inherit", fontSize: 13 }} />
+                            </ListItemButton>
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  </Collapse>
+                </Box>
+              );
+            }
+
+            // default menu item rendering
+            return (
+              <ListItem key={path} disablePadding sx={{ mb: 0.5 }}>
+                <ListItemButton
+                  component={NavLink}
+                  to={path}
+                  end={path === "/"}
+                  sx={{
+                    px: collapsed ? 1.25 : 1.5,
+                    "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
+                    "&.active": { backgroundColor: "rgba(255,255,255,0.06)" },
+                    color: "inherit",
+                  }}
+                >
+                  <Tooltip title={collapsed ? label : ""} placement="right" disableHoverListener={!collapsed}>
+                    <ListItemIcon sx={{ minWidth: 36, justifyContent: "center", color: "inherit" }}>
+                      <Icon />
+                    </ListItemIcon>
+                  </Tooltip>
+
+                  {!collapsed && <ListItemText primary={label} sx={{ color: "inherit", fontWeight: 500 }} />}
+                </ListItemButton>
+              </ListItem>
+            );
+          })}
         </List>
 
         <Divider sx={{ borderColor: "rgba(255,255,255,0.08)" }} />
@@ -173,7 +301,8 @@ function SidebarMui({ mobileOpen, onClose, collapsed = false, onToggleCollapse }
         </Box>
       </Box>
     ),
-    [width, collapsed, handleHeaderClick, isLgUp, onClose, onToggleCollapse, handleLogout]
+    // dependencies: include everything referenced inside
+    [width, collapsed, procurementOpen, location.pathname, visibleMenus, handleHeaderClick, isLgUp, onClose, onToggleCollapse, handleLogout]
   );
 
   return (

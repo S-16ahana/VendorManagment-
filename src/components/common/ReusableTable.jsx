@@ -1,4 +1,3 @@
-// src/components/common/ReusableTable.jsx
 import React, { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { MaterialReactTable, useMaterialReactTable } from "material-react-table";
 import {
@@ -22,26 +21,53 @@ import {
   TextField,
   IconButton,
   InputAdornment,
+  Tooltip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
-/**
- * Notes on optimizations:
- * - Single invocation of useMaterialReactTable (previous version created two table instances).
- * - Column keys/headers are derived from the `columns` prop by flattening columns,
- *   avoiding the need to call table.getAllLeafColumns() before the table exists.
- * - Debounced global filter application to reduce re-renders on typing.
- * - Search UI purposely stripped of white bg / box-shadow and uses minimal styles.
- *
- * Behavior change:
- * - The component maintains internal `tableData` state derived from `data` prop.
- * - It now detects newly-added rows (by `id` when present) and ensures those
- *   new rows are placed at the very top. The first newly-added row is highlighted.
- * - Highlight is cleared when user hovers over that row or clicks it.
- */
+// Updated ProgressBarCell with red (used) and green (remaining) sections, plus tooltips
+const ProgressBarCell = ({ value, yearBudget }) => {
+  const percentage = (value / yearBudget) * 100;
+  const remainingPercentage = 100 - percentage;
+
+ return (
+  <Box
+    sx={{
+      width: "100%",
+      height: 20,
+      bgcolor: "var(--gray-bg)", // 🩶 light gray background from root
+      borderRadius: 1,
+      overflow: "hidden",
+      display: "flex",
+    }}
+  >
+    <Tooltip title={`Used: ${percentage.toFixed(1)}% (₹${value})`} arrow>
+      <Box
+        sx={{
+          width: `${percentage}%`,
+          height: "100%",
+          bgcolor: "#1976d2", // 🔵 Blue for used (primary)
+          transition: "width 0.3s ease",
+        }}
+      />
+    </Tooltip>
+    <Tooltip title={`Remaining: ${remainingPercentage.toFixed(1)}% (₹${yearBudget - value})`} arrow>
+      <Box
+        sx={{
+          width: `${remainingPercentage}%`,
+          height: "100%",
+          bgcolor: "#9e9e9e", // 🩶 Gray for remaining
+          transition: "width 0.3s ease",
+        }}
+      />
+    </Tooltip>
+  </Box>
+);
+
+};
 
 const flattenColumns = (cols = []) => {
   const res = [];
@@ -57,20 +83,17 @@ const flattenColumns = (cols = []) => {
 
 const ReusableTable = ({ columns, data, options = {} }) => {
   const memoizedColumns = useMemo(() => columns || [], [columns]);
-
   const {
     maxHeight = "60vh",
     topToolbar,
     enableVirtualization = false,
     rowVirtualizerProps = {},
     exportColumns: exportColumnsFromOptions = null,
-    // expandable search options
     searchPlaceholder = "Search",
-    searchCollapsedWidth = 40, // px
-    searchExpandedWidth = 320, // px
-    searchTransition = "180ms", // CSS transition duration
+    searchCollapsedWidth = 40,
+    searchExpandedWidth = 320,
+    searchTransition = "180ms",
     searchDebounceMs = 220,
-    // preserveOrder: if true, rely on incoming order unchanged
     preserveOrder = false,
     ...mrtOptions
   } = options;
@@ -86,7 +109,6 @@ const ReusableTable = ({ columns, data, options = {} }) => {
       ...(mrtOptions.muiTableContainerProps?.sx || {}),
     },
   };
-
   const defaultMuiPaperProps = { sx: { width: "100%", overflow: "hidden" } };
   const mergedMuiPaperProps = {
     ...defaultMuiPaperProps,
@@ -94,14 +116,12 @@ const ReusableTable = ({ columns, data, options = {} }) => {
     sx: { ...defaultMuiPaperProps.sx, ...(mrtOptions.muiPaperProps?.sx || {}) },
   };
 
-  // helper to safely read nested values (supports accessor like "user.name")
   const readValueFromObject = useCallback((obj, key) => {
     if (!obj || !key) return undefined;
     if (!key.includes(".")) return obj[key];
     return key.split(".").reduce((acc, part) => (acc ? acc[part] : undefined), obj);
   }, []);
 
-  // simple CSV exporter (dynamic import only on demand)
   const handleExportObjects = useCallback(async (objs, filename = "export.csv") => {
     if (!objs || objs.length === 0) return;
     try {
@@ -125,81 +145,58 @@ const ReusableTable = ({ columns, data, options = {} }) => {
       );
       const csv = [keys.join(","), ...rows].join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      const link = document.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = link;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(link);
     }
   }, []);
 
-  // --- NEW: internal table data state so we can show newly added rows on top ---
-  // We'll keep a prevDataRef to detect new items by id (fall back to JSON-string if id missing).
   const [tableData, setTableData] = useState(() => {
     if (!Array.isArray(data)) return [];
-    // default initial ordering: use incoming as-is unless you want reverse behavior externally
     return [...data];
   });
-
   const prevDataRef = useRef(Array.isArray(data) ? data.slice() : []);
-  const [highlightedRowKey, setHighlightedRowKey] = useState(null); // store id or fallback key for highlight
+  const [highlightedRowKey, setHighlightedRowKey] = useState(null);
 
   useEffect(() => {
     const incoming = Array.isArray(data) ? data.slice() : [];
     const prev = prevDataRef.current || [];
-
-    // Helper: compute stable key for item (prefer id)
     const keyOf = (item) => {
       if (!item) return undefined;
       if (item.id !== undefined && item.id !== null) return String(item.id);
-      // fallback: try vendor_code or vendor_name if present (useful for your dataset)
       if (item.vendor_code) return `vc:${String(item.vendor_code)}`;
       if (item.vendor_name) return `vn:${String(item.vendor_name)}`;
-      // final fallback: JSON string (not ideal but stable while item shape is stable)
       try {
         return `raw:${JSON.stringify(item)}`;
       } catch {
         return `obj:${Object.keys(item || {}).join("|")}`;
       }
     };
-
     const prevKeys = prev.map(keyOf);
     const incomingKeys = incoming.map(keyOf);
-
-    // If preserveOrder is requested, just adopt incoming order (no reordering)
     if (preserveOrder) {
       setTableData(incoming);
       prevDataRef.current = incoming.slice();
-      // clear highlight if incoming no longer contains previous highlighted item
       if (highlightedRowKey && !incomingKeys.includes(highlightedRowKey)) setHighlightedRowKey(null);
       return;
     }
-
-    // Detect newly added keys (present in incoming but not in prev)
     const addedKeys = incomingKeys.filter((k) => k && !prevKeys.includes(k));
-
     if (addedKeys.length > 0) {
-      // compute added items in incoming order
       const addedItems = incoming.filter((it) => addedKeys.includes(keyOf(it)));
-      // others: incoming items excluding the addedKeys (preserve their incoming order)
       const otherItems = incoming.filter((it) => !addedKeys.includes(keyOf(it)));
-      // Put newly added items at very top
       const newTop = [...addedItems, ...otherItems];
       setTableData(newTop);
-      // highlight the first added item (user wanted "that row should be highlighted properly")
       setHighlightedRowKey(addedKeys[0]);
     } else {
-      // No new items: adopt incoming (keeps any re-ordering from parent)
       setTableData(incoming);
-      // if incoming no longer contains highlighted row -> clear highlight
       if (highlightedRowKey && !incomingKeys.includes(highlightedRowKey)) setHighlightedRowKey(null);
     }
-
     prevDataRef.current = incoming.slice();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, preserveOrder]);
 
-  // base MRT options (single table instance created later)
   const baseTableOptions = useMemo(
     () => ({
       columns: memoizedColumns,
@@ -221,9 +218,7 @@ const ReusableTable = ({ columns, data, options = {} }) => {
         sx: { whiteSpace: "normal", wordBreak: "break-word" },
         ...(mrtOptions.muiTableBodyCellProps || {}),
       },
-      // Row props: add highlight sx and interaction handlers that clear highlight when hovered/clicked
       muiTableBodyRowProps: ({ row }) => {
-        // compute stable key for row.original similar to above
         const computeKey = (item) => {
           if (!item) return undefined;
           if (item.id !== undefined && item.id !== null) return String(item.id);
@@ -237,21 +232,13 @@ const ReusableTable = ({ columns, data, options = {} }) => {
         };
         const rowKey = computeKey(row.original);
         const isHighlighted = highlightedRowKey && rowKey === highlightedRowKey;
-
         return {
           onMouseEnter: () => {
-            if (isHighlighted) {
-              // Clear highlight when user hovers the row (user "visits" / mouses over)
-              setHighlightedRowKey(null);
-            }
+            if (isHighlighted) setHighlightedRowKey(null);
           },
           onClick: () => {
-            if (isHighlighted) {
-              // Clear highlight on click too
-              setHighlightedRowKey(null);
-            }
+            if (isHighlighted) setHighlightedRowKey(null);
           },
-          // Visual highlight: subtle background and transition
           sx: isHighlighted
             ? {
                 backgroundColor: (theme) =>
@@ -281,7 +268,6 @@ const ReusableTable = ({ columns, data, options = {} }) => {
     ]
   );
 
-  // derive column keys & headers from columns prop (avoids building table early)
   const { allColumnKeys, columnKeyToHeader } = useMemo(() => {
     const flat = flattenColumns(memoizedColumns);
     const keys = [];
@@ -297,7 +283,6 @@ const ReusableTable = ({ columns, data, options = {} }) => {
     return { allColumnKeys: keys, columnKeyToHeader: map };
   }, [memoizedColumns]);
 
-  // column selection state
   const [selectedExportColumns, setSelectedExportColumns] = useState(() =>
     Array.isArray(exportColumnsFromOptions) && exportColumnsFromOptions.length ? exportColumnsFromOptions : []
   );
@@ -308,24 +293,19 @@ const ReusableTable = ({ columns, data, options = {} }) => {
     } else {
       setSelectedExportColumns((prev) => prev.filter((k) => allColumnKeys.includes(k)));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allColumnKeys.join("|")]);
 
-  // menu state
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
   const handleOpenMenu = (e) => setAnchorEl(e.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
-
   const toggleColumnSelection = (key) =>
     setSelectedExportColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   const selectAllColumns = () => setSelectedExportColumns([...allColumnKeys]);
   const clearAllColumns = () => setSelectedExportColumns([]);
 
-  // preview modal state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewRows, setPreviewRows] = useState([]);
-
   const openPreviewModal = (toolbarTable, useAllRows = false) => {
     const mrtRows = useAllRows ? toolbarTable.getPrePaginationRowModel().rows : toolbarTable.getRowModel().rows;
     setPreviewRows(mrtRows.map((r) => r.original ?? r));
@@ -333,7 +313,6 @@ const ReusableTable = ({ columns, data, options = {} }) => {
   };
   const closePreviewModal = () => setPreviewOpen(false);
 
-  // export using selectedExportColumns and current row model
   const exportSelectedFromTable = useCallback(
     (opts = { filename: "export.csv", useAllRows: false }, toolbarTable) => {
       const keysToExport = selectedExportColumns;
@@ -353,32 +332,26 @@ const ReusableTable = ({ columns, data, options = {} }) => {
     [handleExportObjects, readValueFromObject, selectedExportColumns]
   );
 
-  // --- search state & debounce ---
   const [searchExpanded, setSearchExpanded] = useState(false);
   const lastTypedRef = useRef("");
   const debounceTimer = useRef(null);
 
-  // teardown debounce timer on unmount
   useEffect(() => {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, []);
 
-  // toolbar renderer (only created once)
   const defaultTopToolbar = useCallback(
     ({ table: toolbarTable }) => {
       const currentGlobalFilter = toolbarTable.getState().globalFilter ?? "";
-
       const applyFilterDebounced = (value) => {
         lastTypedRef.current = value;
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => {
-          // only set when value equals lastTypedRef to avoid race
           toolbarTable.setGlobalFilter(lastTypedRef.current || "");
         }, searchDebounceMs);
       };
-
       return (
         <Box
           sx={{
@@ -391,7 +364,6 @@ const ReusableTable = ({ columns, data, options = {} }) => {
           }}
         >
           <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-            {/* Expandable search - visually transparent background, no elevation */}
             <Box
               sx={{
                 display: "flex",
@@ -426,9 +398,8 @@ const ReusableTable = ({ columns, data, options = {} }) => {
                   fullWidth
                   InputProps={{
                     sx: {
-                      backgroundColor: "transparent", // remove white bg
+                      backgroundColor: "transparent",
                       boxShadow: "none",
-                      // remove strong borders if you want totally minimal look:
                       "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(0,0,0,0.12)" },
                     },
                     endAdornment: (
@@ -436,10 +407,7 @@ const ReusableTable = ({ columns, data, options = {} }) => {
                         <IconButton
                           size="small"
                           onClick={() => {
-                            // clear filter and collapse (also clear pending debounce)
-                            if (debounceTimer.current) {
-                              clearTimeout(debounceTimer.current);
-                            }
+                            if (debounceTimer.current) clearTimeout(debounceTimer.current);
                             toolbarTable.setGlobalFilter("");
                             setSearchExpanded(false);
                           }}
@@ -456,7 +424,6 @@ const ReusableTable = ({ columns, data, options = {} }) => {
                     ),
                   }}
                   sx={{
-                    // ensure there is no white background behind the input
                     "& .MuiInputBase-root": {
                       background: "transparent",
                       height: 36,
@@ -465,12 +432,8 @@ const ReusableTable = ({ columns, data, options = {} }) => {
                 />
               )}
             </Box>
-
-            {/* removed filter toggle + clear filters as requested */}
           </Box>
-
           <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
-            {/* Export / Preview controls remain */}
             <Box>
               <Button
                 size="small"
@@ -481,7 +444,6 @@ const ReusableTable = ({ columns, data, options = {} }) => {
               >
                 Export Columns
               </Button>
-
               <Menu anchorEl={anchorEl} open={open} onClose={handleCloseMenu} PaperProps={{ sx: { minWidth: 420 } }}>
                 <Box sx={{ p: 1 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
@@ -495,7 +457,6 @@ const ReusableTable = ({ columns, data, options = {} }) => {
                       </Button>
                     </Box>
                   </Box>
-
                   <FormGroup sx={{ maxHeight: 260, overflowY: "auto" }}>
                     {allColumnKeys.map((key) => (
                       <FormControlLabel
@@ -512,9 +473,7 @@ const ReusableTable = ({ columns, data, options = {} }) => {
                       />
                     ))}
                   </FormGroup>
-
                   <Divider sx={{ my: 1 }} />
-
                   <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
                     <Button size="small" variant="outlined" onClick={() => openPreviewModal(toolbarTable, false)}>
                       Preview
@@ -529,7 +488,6 @@ const ReusableTable = ({ columns, data, options = {} }) => {
                   </Box>
                 </Box>
               </Menu>
-
               <Dialog open={previewOpen} onClose={closePreviewModal} fullWidth maxWidth="lg">
                 <DialogTitle>Export Preview</DialogTitle>
                 <DialogContent dividers sx={{ p: 1 }}>
@@ -619,11 +577,9 @@ const ReusableTable = ({ columns, data, options = {} }) => {
     ]
   );
 
-  // Respect user-provided toolbar override if present
   const finalRenderTopToolbar =
     mrtOptions.renderTopToolbar || topToolbar === null ? mrtOptions.renderTopToolbar : topToolbar ? topToolbar : defaultTopToolbar;
 
-  // Final table instance (only one)
   const finalTable = useMaterialReactTable({
     ...baseTableOptions,
     renderTopToolbar: finalRenderTopToolbar,

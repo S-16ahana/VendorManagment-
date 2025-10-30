@@ -1,7 +1,9 @@
-// src/features/auth/loginSlice.js
+// src/features/auth/LoginSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
-// built-in demo users (kept as defaults)
+// -----------------------------------------------------------------------------
+// Default built-in demo users
+// -----------------------------------------------------------------------------
 const VALID_USERS = [
   {
     email: "admin@gmail.com",
@@ -15,9 +17,17 @@ const VALID_USERS = [
     role: "user",
     name: "Standard User",
   },
+  {
+    email: "pro@gmail.com",
+    password: "Pro@12345", // ✅ Updated to meet min 8-char validation
+    role: "procurement",
+    name: "Procurement Officer",
+  },
 ];
 
-// helper: get runtime users saved by admin (from localStorage)
+// -----------------------------------------------------------------------------
+// Helper: Get runtime users saved by admin (from localStorage)
+// -----------------------------------------------------------------------------
 function getStoredUsers() {
   try {
     const raw = localStorage.getItem("app_users");
@@ -29,18 +39,30 @@ function getStoredUsers() {
   }
 }
 
-// Async thunk to simulate login call (checks VALID_USERS + stored users)
+// -----------------------------------------------------------------------------
+// Async Thunk: Simulate login API call (checks VALID_USERS + stored users)
+// -----------------------------------------------------------------------------
 export const loginUser = createAsyncThunk(
   "auth/loginUser",
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      // simulate latency
+      // Simulate latency
       await new Promise((res) => setTimeout(res, 600));
 
       const stored = getStoredUsers();
-      // precedence: stored users override built-in if same email
-      const merged = [...VALID_USERS.filter(u => !stored.find(su => su.email.toLowerCase() === u.email.toLowerCase())), ...stored];
 
+      // Merge stored users and built-in users (stored users take precedence)
+      const merged = [
+        ...VALID_USERS.filter(
+          (u) =>
+            !stored.find(
+              (su) => su.email.toLowerCase() === u.email.toLowerCase()
+            )
+        ),
+        ...stored,
+      ];
+
+      // Find user match
       const found = merged.find(
         (u) =>
           u.email.toLowerCase() === email.toLowerCase() &&
@@ -51,6 +73,7 @@ export const loginUser = createAsyncThunk(
         return rejectWithValue("Invalid email or password");
       }
 
+      // Generate simple encoded token
       const token = btoa(`${found.email}:${Date.now()}`);
 
       return {
@@ -67,6 +90,9 @@ export const loginUser = createAsyncThunk(
   }
 );
 
+// -----------------------------------------------------------------------------
+// Initial State
+// -----------------------------------------------------------------------------
 const initialState = {
   user: JSON.parse(localStorage.getItem("auth_user")) || null,
   token: localStorage.getItem("auth_token") || null,
@@ -75,6 +101,9 @@ const initialState = {
   isAuthenticated: !!localStorage.getItem("auth_token"),
 };
 
+// -----------------------------------------------------------------------------
+// Slice Definition
+// -----------------------------------------------------------------------------
 const loginSlice = createSlice({
   name: "auth",
   initialState,
@@ -103,7 +132,12 @@ const loginSlice = createSlice({
         state.token = action.payload.token;
         state.isAuthenticated = true;
         state.error = null;
-        localStorage.setItem("auth_user", JSON.stringify(action.payload.user));
+
+        // Persist user and token
+        localStorage.setItem(
+          "auth_user",
+          JSON.stringify(action.payload.user)
+        );
         localStorage.setItem("auth_token", action.payload.token);
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -113,5 +147,8 @@ const loginSlice = createSlice({
   },
 });
 
+// -----------------------------------------------------------------------------
+// Exports
+// -----------------------------------------------------------------------------
 export const { logout, clearError } = loginSlice.actions;
 export default loginSlice.reducer;

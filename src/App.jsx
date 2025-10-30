@@ -14,6 +14,7 @@ const Reports = lazy(() => import("./features/reports/Reports"));
 const Payments = lazy(() => import("./features/payments/payment"));
 const Login = lazy(() => import("./features/auth/Login"));
 const Settings = lazy(() => import("./features/auth/Settings"));
+const Procurement = lazy(() => import("./features/procurement/ProcurementUpdated"));
 
 function App() {
   return (
@@ -40,6 +41,8 @@ function App() {
               <Route path="payments" element={<Payments />} />
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="procurement" element={<Procurement />} />
+
             </Route>
 
             {/* Fallback */}
